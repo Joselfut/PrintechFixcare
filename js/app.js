@@ -12,6 +12,7 @@ const CATEGORIES = [
 let incidents = [];
 let selectedCategory = "Todas";
 let searchQuery = "";
+let viewMode = "fix"; // "fix" | "care"
 
 const els = {
   searchInput: document.getElementById("searchInput"),
@@ -145,20 +146,97 @@ function openCreateModal() {
   els.formModal.showModal();
 }
 
-function openEditModal(id) {
+function getCareSteps(item) {
+  const safeSteps = (item.steps || []).filter(
+    (step) => !/motor|fusor|reemplazar|placa|sensor/i.test(step)
+  );
+
+  if (safeSteps.length > 0) {
+    return [
+      "Antes de revisar piezas internas, haz estas comprobaciones básicas:",
+      ...safeSteps.slice(0, 3),
+      "Si el problema continúa, ten a mano el modelo y el código o mensaje en pantalla para que soporte te asista más rápido."
+    ];
+  }
+
+  return [
+    "Verifica que el equipo esté encendido, conectado firmemente y sin avisos de papel o cubierta abierta.",
+    "Intenta reiniciar el equipo de forma segura y realizar una prueba sencilla.",
+    "Si el aviso vuelve a aparecer, contacta a soporte indicando el modelo y lo que muestra la pantalla."
+  ];
+}
+
+function buildClientMessage(item) {
+  return [
+    `Hola, sobre el inconveniente (${item.code}) en el equipo ${item.model}:`,
+    `Esto suele deberse a: ${item.cause.toLowerCase()}`,
+    "Como primer paso sencillo, puedes intentar:",
+    ...getCareSteps(item).slice(1, 3).map((s, i) => `${i + 1}. ${s}`),
+    "Si persiste, avísanos y lo revisamos a detalle."
+  ].join("\n");
+}
+
+function openDetailModal(id) {
   const item = incidents.find((inc) => inc.id === id);
   if (!item) return;
 
-  els.formModalTitle.textContent = "Editar incidencia";
-  els.incidentId.value = item.id;
-  els.modelInput.value = item.model;
-  els.codeInput.value = item.code;
-  els.categoryInput.value = item.category;
-  els.priorityInput.value = item.priority;
-  els.causeInput.value = item.cause;
-  els.stepsInput.value = (item.steps || []).join("\n");
-  els.notesInput.value = item.notes || "";
-  els.formModal.showModal();
+  const isCare = viewMode === "care";
+  const stepsToShow = isCare ? getCareSteps(item) : (item.steps || []);
+  const stepsHtml = stepsToShow.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
+
+  els.detailContent.innerHTML = `
+    <div class="modal__header">
+      <div>
+        <span class="badge">${isCare ? "Modo Care · Usuario final" : "Modo Fix · Diagnóstico rápido"}</span>
+        <h2 style="margin-top: 0.4rem;">${escapeHtml(item.code)}</h2>
+        <p class="card__model">${escapeHtml(item.model)} · ${escapeHtml(item.category)}</p>
+      </div>
+      <button type="button" class="icon-btn" id="closeDetailBtn" aria-label="Cerrar">✕</button>
+    </div>
+
+    <div>
+      <strong>${isCare ? "¿Qué está pasando?" : "Causa probable:"}</strong>
+      <p class="card__cause">${escapeHtml(item.cause)}</p>
+    </div>
+
+    <div>
+      <strong>${isCare ? "Pasos recomendados para el usuario:" : "Pasos de solución:"}</strong>
+      <ol class="steps-list">${stepsHtml}</ol>
+    </div>
+
+    ${
+      item.notes && !isCare
+        ? `<p class="panel__hint"><strong>Notas técnicas:</strong> ${escapeHtml(item.notes)}</p>`
+        : ""
+    }
+
+    <div class="modal__footer">
+      <button type="button" class="btn btn--secondary" id="copySolutionBtn">
+        ${isCare ? "Copiar mensaje para cliente" : "Copiar solución"}
+      </button>
+      <button type="button" class="btn btn--primary" id="closeDetailFooterBtn">
+        Listo
+      </button>
+    </div>
+  `;
+
+  els.detailModal.showModal();
+
+  document.getElementById("closeDetailBtn").addEventListener("click", () => els.detailModal.close());
+  document.getElementById("closeDetailFooterBtn").addEventListener("click", () => els.detailModal.close());
+  document.getElementById("copySolutionBtn").addEventListener("click", async () => {
+    const textToCopy = isCare
+      ? buildClientMessage(item)
+      : [
+          `${item.model} - ${item.code}`,
+          `Causa probable: ${item.cause}`,
+          "Pasos:",
+          ...(item.steps || []).map((s, idx) => `${idx + 1}. ${s}`)
+        ].join("\n");
+
+    await navigator.clipboard.writeText(textToCopy);
+    alert(isCare ? "Mensaje para el cliente copiado." : "Solución copiada al portapapeles.");
+  });
 }
 
 function openDetailModal(id) {
@@ -338,6 +416,19 @@ els.incidentsGrid.addEventListener("click", (e) => {
 els.exportJsonBtn.addEventListener("click", exportJson);
 els.importJsonInput.addEventListener("change", importJson);
 els.resetSeedBtn.addEventListener("click", resetSeedData);
+
+const modeFixBtn = document.getElementById("modeFixBtn");
+const modeCareBtn = document.getElementById("modeCareBtn");
+
+function setViewMode(mode) {
+  viewMode = mode;
+  modeFixBtn.classList.toggle("is-active", mode === "fix");
+  modeCareBtn.classList.toggle("is-active", mode === "care");
+  renderIncidents();
+}
+
+modeFixBtn.addEventListener("click", () => setViewMode("fix"));
+modeCareBtn.addEventListener("click", () => setViewMode("care"));
 
 // Inicialización
 loadIncidents();
