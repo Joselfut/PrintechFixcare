@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PrintechFixcare — Bitácora Técnica</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__brand">
+      <h1>PrintechFixcare</h1>
+      <span class="topbar__subtitle">Bitácora técnica y base de conocimiento</span>
+    </div>
+
+    <div class="topbar__actions">
+      <input
+        id="searchInput"
+        type="search"
+        class="search-input"
+        placeholder="Buscar por código, modelo o falla..."
+        aria-label="Buscar incidencias"
+      />
+      <button id="openCreateBtn" type="button" class="btn btn--primary">
+        + Nueva incidencia
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section class="panel">
+        <h2 class="panel__title">Categorías</h2>
+        <div id="categoryFilters" class="filter-list"></div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel__title">Respaldo y datos</h2>
+        <p class="panel__hint">
+          Los cambios se guardan automáticamente en este navegador.
+        </p>
+        <div class="stack-actions">
+          <button id="exportJsonBtn" type="button" class="btn btn--secondary">
+            Exportar JSON
+          </button>
+          <label class="btn btn--secondary file-label">
+            Importar JSON
+            <input id="importJsonInput" type="file" accept="application/json" hidden />
+          </label>
+          <button id="resetSeedBtn" type="button" class="btn btn--ghost">
+            Restaurar ejemplos
+          </button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="content">
+      <div class="content__header">
+        <p id="resultsCount" class="results-count">0 incidencias</p>
+      </div>
+      <div id="incidentsGrid" class="cards-grid"></div>
+    </section>
+  </main>
+
+  <!-- Modal para Crear / Editar incidencia -->
+  <dialog id="formModal" class="modal">
+    <form id="incidentForm" class="modal__card" method="dialog">
+      <div class="modal__header">
+        <h2 id="formModalTitle">Nueva incidencia</h2>
+        <button id="closeFormModalBtn" type="button" class="icon-btn" aria-label="Cerrar">✕</button>
+      </div>
+
+      <input type="hidden" id="incidentId" />
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="modelInput">Modelo / Equipo *</label>
+          <input id="modelInput" type="text" required placeholder="Ej. HP LaserJet Pro M404 / M428" />
+        </div>
+
+        <div class="field">
+          <label for="codeInput">Código o síntoma principal *</label>
+          <input id="codeInput" type="text" required placeholder="Ej. Error 59.F0 o Líneas verticales" />
+        </div>
+
+        <div class="field">
+          <label for="categoryInput">Categoría *</label>
+          <select id="categoryInput" required>
+            <option value="Hardware / Fuser">Hardware / Fuser</option>
+            <option value="Atascos / Papel">Atascos / Papel</option>
+            <option value="Calidad / Tóner">Calidad / Tóner</option>
+            <option value="Red / Drivers">Red / Drivers</option>
+            <option value="Firmware / Sistema">Firmware / Sistema</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="priorityInput">Frecuencia / Prioridad *</label>
+          <select id="priorityInput" required>
+            <option value="Alta">Alta</option>
+            <option value="Media">Media</option>
+            <option value="Baja">Baja</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="causeInput">Causa probable *</label>
+        <textarea id="causeInput" rows="2" required placeholder="Qué suele provocar esta falla..."></textarea>
+      </div>
+
+      <div class="field">
+        <label for="stepsInput">Pasos de diagnóstico y solución (uno por línea) *</label>
+        <textarea
+          id="stepsInput"
+          rows="5"
+          required
+          placeholder="1. Apagar el equipo y desconectar energía&#10;2. Revisar conexión o sensor..."
+        ></textarea>
+      </div>
+
+      <div class="field">
+        <label for="notesInput">Notas adicionales / Consumibles o repuestos</label>
+        <input id="notesInput" type="text" placeholder="Ej. Verificar fusor, rodillo de pickup o IP fija" />
+      </div>
+
+      <div class="modal__footer">
+        <button id="cancelFormBtn" type="button" class="btn btn--ghost">Cancelar</button>
+        <button type="submit" class="btn btn--primary">Guardar incidencia</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal para Ver detalle -->
+  <dialog id="detailModal" class="modal">
+    <div id="detailContent" class="modal__card"></div>
+  </dialog>
+
+  <script src="js/seed-data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
