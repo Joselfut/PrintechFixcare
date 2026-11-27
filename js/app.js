@@ -20,6 +20,8 @@ const els = {
   incidentsGrid: document.getElementById("incidentsGrid"),
   resultsCount: document.getElementById("resultsCount"),
   openCreateBtn: document.getElementById("openCreateBtn"),
+  modeFixBtn: document.getElementById("modeFixBtn"),
+  modeCareBtn: document.getElementById("modeCareBtn"),
   formModal: document.getElementById("formModal"),
   formModalTitle: document.getElementById("formModalTitle"),
   incidentForm: document.getElementById("incidentForm"),
@@ -81,71 +83,6 @@ function getFilteredIncidents() {
   });
 }
 
-function renderCategories() {
-  els.categoryFilters.innerHTML = "";
-  CATEGORIES.forEach((cat) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `filter-btn ${selectedCategory === cat ? "is-active" : ""}`;
-    btn.textContent = cat;
-    btn.addEventListener("click", () => {
-      selectedCategory = cat;
-      renderCategories();
-      renderIncidents();
-    });
-    els.categoryFilters.appendChild(btn);
-  });
-}
-
-function renderIncidents() {
-  const filtered = getFilteredIncidents();
-  els.resultsCount.textContent = `${filtered.length} ${
-    filtered.length === 1 ? "incidencia" : "incidencias"
-  }`;
-
-  if (filtered.length === 0) {
-    els.incidentsGrid.innerHTML =
-      `<p class="panel__hint">No se encontraron incidencias con ese filtro o búsqueda.</p>`;
-    return;
-  }
-
-  els.incidentsGrid.innerHTML = "";
-  filtered.forEach((item) => {
-    const card = document.createElement("article");
-    card.className = "card";
-    card.innerHTML = `
-      <div class="card__top">
-        <div>
-          <h3 class="card__code">${escapeHtml(item.code)}</h3>
-          <p class="card__model">${escapeHtml(item.model)}</p>
-        </div>
-        <span class="badge">${escapeHtml(item.priority)}</span>
-      </div>
-      <span class="badge">${escapeHtml(item.category)}</span>
-      <p class="card__cause">${escapeHtml(item.cause)}</p>
-      <div class="card__footer">
-        <button type="button" class="btn btn--primary btn--sm" data-action="view" data-id="${item.id}">
-          Ver pasos
-        </button>
-        <button type="button" class="btn btn--secondary btn--sm" data-action="edit" data-id="${item.id}">
-          Editar
-        </button>
-        <button type="button" class="btn btn--danger btn--sm" data-action="delete" data-id="${item.id}">
-          Eliminar
-        </button>
-      </div>
-    `;
-    els.incidentsGrid.appendChild(card);
-  });
-}
-
-function openCreateModal() {
-  els.formModalTitle.textContent = "Nueva incidencia";
-  els.incidentForm.reset();
-  els.incidentId.value = "";
-  els.formModal.showModal();
-}
-
 function getCareSteps(item) {
   const safeSteps = (item.steps || []).filter(
     (step) => !/motor|fusor|reemplazar|placa|sensor/i.test(step)
@@ -174,6 +111,132 @@ function buildClientMessage(item) {
     ...getCareSteps(item).slice(1, 3).map((s, i) => `${i + 1}. ${s}`),
     "Si persiste, avísanos y lo revisamos a detalle."
   ].join("\n");
+}
+
+function renderCategories() {
+  els.categoryFilters.innerHTML = "";
+  CATEGORIES.forEach((cat) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `filter-btn ${selectedCategory === cat ? "is-active" : ""}`;
+    btn.textContent = cat;
+    btn.addEventListener("click", () => {
+      selectedCategory = cat;
+      renderCategories();
+      renderIncidents();
+    });
+    els.categoryFilters.appendChild(btn);
+  });
+}
+
+function renderIncidents() {
+  const filtered = getFilteredIncidents();
+  const isCare = viewMode === "care";
+
+  els.resultsCount.textContent = isCare
+    ? `Guías de ayuda para usuario · ${filtered.length} ${
+        filtered.length === 1 ? "caso" : "casos"
+      }`
+    : `Bitácora técnica · ${filtered.length} ${
+        filtered.length === 1 ? "incidencia" : "incidencias"
+      }`;
+
+  if (filtered.length === 0) {
+    els.incidentsGrid.innerHTML =
+      `<p class="panel__hint">No se encontraron registros con ese filtro o búsqueda.</p>`;
+    return;
+  }
+
+  const bannerHtml = isCare
+    ? `
+      <div class="care-banner" style="grid-column: 1 / -1;">
+        <h2 class="care-banner__title">Modo PrintechCare — Asistencia clara para el usuario</h2>
+        <p class="care-banner__text">
+          Consulta explicaciones sencillas, comprobaciones seguras que el usuario puede probar primero y mensajes listos para orientar al cliente.
+        </p>
+      </div>
+    `
+    : "";
+
+  els.incidentsGrid.innerHTML = bannerHtml;
+
+  filtered.forEach((item) => {
+    const careSteps = getCareSteps(item);
+    const card = document.createElement("article");
+    card.className = "card";
+
+    if (isCare) {
+      card.innerHTML = `
+        <div class="card__top">
+          <div>
+            <span class="badge">Ayuda al usuario</span>
+            <h3 class="card__code" style="margin-top: 0.35rem;">${escapeHtml(item.code)}</h3>
+            <p class="card__model">${escapeHtml(item.model)}</p>
+          </div>
+        </div>
+        <p class="card__cause"><strong>Qué ocurre:</strong> ${escapeHtml(item.cause)}</p>
+        <p class="panel__hint" style="margin: 0;">
+          <strong>Primer paso seguro:</strong> ${escapeHtml(careSteps[1] || careSteps[0])}
+        </p>
+        <div class="card__footer">
+          <button type="button" class="btn btn--primary btn--sm" data-action="view" data-id="${item.id}">
+            Ver guía usuario
+          </button>
+          <button type="button" class="btn btn--secondary btn--sm" data-action="copy-care" data-id="${item.id}">
+            Copiar ayuda
+          </button>
+        </div>
+      `;
+    } else {
+      card.innerHTML = `
+        <div class="card__top">
+          <div>
+            <h3 class="card__code">${escapeHtml(item.code)}</h3>
+            <p class="card__model">${escapeHtml(item.model)}</p>
+          </div>
+          <span class="badge">${escapeHtml(item.priority)}</span>
+        </div>
+        <span class="badge">${escapeHtml(item.category)}</span>
+        <p class="card__cause">${escapeHtml(item.cause)}</p>
+        <div class="card__footer">
+          <button type="button" class="btn btn--primary btn--sm" data-action="view" data-id="${item.id}">
+            Ver pasos
+          </button>
+          <button type="button" class="btn btn--secondary btn--sm" data-action="edit" data-id="${item.id}">
+            Editar
+          </button>
+          <button type="button" class="btn btn--danger btn--sm" data-action="delete" data-id="${item.id}">
+            Eliminar
+          </button>
+        </div>
+      `;
+    }
+
+    els.incidentsGrid.appendChild(card);
+  });
+}
+
+function openCreateModal() {
+  els.formModalTitle.textContent = "Nueva incidencia";
+  els.incidentForm.reset();
+  els.incidentId.value = "";
+  els.formModal.showModal();
+}
+
+function openEditModal(id) {
+  const item = incidents.find((inc) => inc.id === id);
+  if (!item) return;
+
+  els.formModalTitle.textContent = "Editar incidencia";
+  els.incidentId.value = item.id;
+  els.modelInput.value = item.model;
+  els.codeInput.value = item.code;
+  els.categoryInput.value = item.category;
+  els.priorityInput.value = item.priority;
+  els.causeInput.value = item.cause;
+  els.stepsInput.value = (item.steps || []).join("\n");
+  els.notesInput.value = item.notes || "";
+  els.formModal.showModal();
 }
 
 function openDetailModal(id) {
@@ -236,66 +299,6 @@ function openDetailModal(id) {
 
     await navigator.clipboard.writeText(textToCopy);
     alert(isCare ? "Mensaje para el cliente copiado." : "Solución copiada al portapapeles.");
-  });
-}
-
-function openDetailModal(id) {
-  const item = incidents.find((inc) => inc.id === id);
-  if (!item) return;
-
-  const stepsHtml = (item.steps || [])
-    .map((step) => `<li>${escapeHtml(step)}</li>`)
-    .join("");
-
-  els.detailContent.innerHTML = `
-    <div class="modal__header">
-      <div>
-        <h2>${escapeHtml(item.code)}</h2>
-        <p class="card__model">${escapeHtml(item.model)} · ${escapeHtml(item.category)}</p>
-      </div>
-      <button type="button" class="icon-btn" id="closeDetailBtn" aria-label="Cerrar">✕</button>
-    </div>
-
-    <div>
-      <strong>Causa probable:</strong>
-      <p class="card__cause">${escapeHtml(item.cause)}</p>
-    </div>
-
-    <div>
-      <strong>Pasos de solución:</strong>
-      <ol class="steps-list">${stepsHtml}</ol>
-    </div>
-
-    ${
-      item.notes
-        ? `<p class="panel__hint"><strong>Notas:</strong> ${escapeHtml(item.notes)}</p>`
-        : ""
-    }
-
-    <div class="modal__footer">
-      <button type="button" class="btn btn--secondary" id="copySolutionBtn">
-        Copiar solución
-      </button>
-      <button type="button" class="btn btn--primary" id="closeDetailFooterBtn">
-        Listo
-      </button>
-    </div>
-  `;
-
-  els.detailModal.showModal();
-
-  document.getElementById("closeDetailBtn").addEventListener("click", () => els.detailModal.close());
-  document.getElementById("closeDetailFooterBtn").addEventListener("click", () => els.detailModal.close());
-  document.getElementById("copySolutionBtn").addEventListener("click", async () => {
-    const textToCopy = [
-      `${item.model} - ${item.code}`,
-      `Causa probable: ${item.cause}`,
-      "Pasos:",
-      ...(item.steps || []).map((s, idx) => `${idx + 1}. ${s}`)
-    ].join("\n");
-
-    await navigator.clipboard.writeText(textToCopy);
-    alert("Solución copiada al portapapeles.");
   });
 }
 
@@ -384,6 +387,13 @@ function resetSeedData() {
   renderIncidents();
 }
 
+function setViewMode(mode) {
+  viewMode = mode;
+  els.modeFixBtn.classList.toggle("is-active", mode === "fix");
+  els.modeCareBtn.classList.toggle("is-active", mode === "care");
+  renderIncidents();
+}
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -399,6 +409,9 @@ els.searchInput.addEventListener("input", (e) => {
   renderIncidents();
 });
 
+els.modeFixBtn.addEventListener("click", () => setViewMode("fix"));
+els.modeCareBtn.addEventListener("click", () => setViewMode("care"));
+
 els.openCreateBtn.addEventListener("click", openCreateModal);
 els.closeFormModalBtn.addEventListener("click", () => els.formModal.close());
 els.cancelFormBtn.addEventListener("click", () => els.formModal.close());
@@ -411,24 +424,17 @@ els.incidentsGrid.addEventListener("click", (e) => {
   if (action === "view") openDetailModal(id);
   if (action === "edit") openEditModal(id);
   if (action === "delete") deleteIncident(id);
+  if (action === "copy-care") {
+    const item = incidents.find((inc) => inc.id === id);
+    if (!item) return;
+    navigator.clipboard.writeText(buildClientMessage(item));
+    alert("Mensaje de ayuda para el usuario copiado.");
+  }
 });
 
 els.exportJsonBtn.addEventListener("click", exportJson);
 els.importJsonInput.addEventListener("change", importJson);
 els.resetSeedBtn.addEventListener("click", resetSeedData);
-
-const modeFixBtn = document.getElementById("modeFixBtn");
-const modeCareBtn = document.getElementById("modeCareBtn");
-
-function setViewMode(mode) {
-  viewMode = mode;
-  modeFixBtn.classList.toggle("is-active", mode === "fix");
-  modeCareBtn.classList.toggle("is-active", mode === "care");
-  renderIncidents();
-}
-
-modeFixBtn.addEventListener("click", () => setViewMode("fix"));
-modeCareBtn.addEventListener("click", () => setViewMode("care"));
 
 // Inicialización
 loadIncidents();
